@@ -97,6 +97,11 @@ function env_all_pre_centos () {
 }
 function env_all_pre_ubuntu () {
     export DEBIAN_FRONTEND=noninteractive
+
+    # suppress installation of merely recommended packages -- this is a server
+    # after all
+    echo 'APT::Install-Recommends "0";' > /etc/apt/apt.conf.d/99no-recommends
+
     say "Running apt-get update ..."
     apt-get update -y -qq
     apt-get install -y software-properties-common
