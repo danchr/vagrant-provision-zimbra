@@ -326,24 +326,26 @@ function _mariadb_setup ()
 {
     service mysql stop
     myfile="/etc/mysql/my.cnf"
-    (
-        pfrom=3306; pto=7306;
-        say "Replacing '$pfrom' with '$pto' in '$myfile'"
-        perl -pi -e "s,$pfrom,$pto,g" "$myfile"
-    )
-    (
-        fdir="/var/lib/mysql"; ddir="${ZIMBRA_HOME}/mysql/data"
-        if [[ -d "$ddir" ]]; then
-            say "Directory '$ddir' already exists!"
-        else
-            say "Copying data from '$fdir' to '$ddir'"
-            mkdir -p "$ddir" && cp -pr "$fdir"/* "$ddir" && chown mysql:mysql "$ddir"
-            [[ -e "$ddir"/mysqld.sock ]] && rm "$ddir"/mysqld.sock
-            ln -s "/var/run/mysqld/mysqld.sock" "$ddir"/mysqld.sock
-            say "Replacing '$fdir' with '$ddir' in '$myfile'"
-            perl -pi -e "s,${fdir},${ddir},g if /^datadir/" "$myfile"
-        fi
-    )
+
+    mycnf=/etc/mysql/conf.d/zimbra.cnf
+    fdir="/var/lib/mysql"
+    ddir="${ZIMBRA_HOME}/mysql/data"
+    mkdir -p $(dirname ${ddir})
+    mv $fdir $ddir
+
+    say "Writing $mycnf"
+    cat > $mycnf <<EOF
+[client]
+port            = 7306
+socket          = $ddir/mysqld.sock
+
+[mysqld]
+port            = 7306
+socket          = ${ddir}/mysqld.sock
+datadir         = ${ddir}
+binlog_format   = MIXED
+EOF
+
     service mysql start
 }
 
