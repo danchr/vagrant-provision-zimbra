@@ -2,6 +2,8 @@
 # vi: set ft=ruby :
 
 def load_conf(cfile)
+  array_keys = ['PROVARGS', 'FORWARD_PORTS']
+
   conf = Hash.new
   if File.exists?("VMBOX")
     print "loading VMBOX...\n" if ENV["DEBUG"]
@@ -17,7 +19,7 @@ def load_conf(cfile)
       elsif /^([^#]*)/.match(val)
         val = $1.strip
       end
-      val = val.split(/\s+/) if /^PROVARGS$/.match(key)
+      val = val.split(/\s+/) if array_keys.include? key
       conf[key] = val
     end
   end
@@ -65,6 +67,13 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   if conf["HOMEDIR"]
     config.vm.synced_folder conf["HOMEDIR"],
                             "/home/" + File.basename(conf["HOMEDIR"])
+  end
+  if conf["FORWARD_PORTS"]
+    conf["FORWARD_PORTS"].each do |spec|
+      src, dst = spec.split(':')
+      config.vm.network "forwarded_port", host: src, guest: dst || src,
+                        auto_correct: true
+    end
   end
 
   # virtualbox: mmap broken on mapped filesystems
