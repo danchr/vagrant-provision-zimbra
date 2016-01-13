@@ -45,7 +45,7 @@ function usage ()
 Usage: $prog <[-b][-d][-r]>
   environment type (choose all desired zimbra related environments):
     -b  == build       ThirdParty FOSS (gcc,headers,libs,etc.)
-    -d  == development Full ZCS builds (consul,mariadb,redis,memcached...)
+    -d  == development Full ZCS builds (mariadb,openldap,ant...)
     -r  == runtime     Runtime for ZCS (curl,gzip,libaio,netcat,sysstat,tar,wget)
 
   Notes:
@@ -117,11 +117,9 @@ function env_dev ()
 {
     env_run
     _install_java 7 # JP dev requirement
+    _install ant
     _install_zdevtools # reviewboard
-    _install memcached redis-server
     _install_mariadb_server
-    _install_consul 0.5.2
-    _link_zimbra_common
 
     if [[ "$dist" = "ubuntu" ]]; then
         say "Adding Zimbra repository ..."
@@ -164,12 +162,16 @@ function env_run_ubuntu () { _install libaio1 netcat; }
 # build - compilers, dev headers/libs, packaging, ...
 # - note: jdk 1.7 is needed to build openjdk 1.8 but for now we will
 #   handle that as part of that package's build process
-function env_build () { _install_buildtools; }
+function env_build ()
+{
+    _install_buildtools;
+    _install_java 8
+    _install_maven
+    _install ant
+}
 function env_build_dev ()
 {
     _install make
-    _install_java 8
-    _install_ant_maven
 }
 
 ###
@@ -264,15 +266,15 @@ function _install_buildtools_ubuntu ()
 }
 
 # for java development
-function _install_ant_maven () { _install_ant_maven_$dist; }
-function _install_ant_maven_centos ()
+function _install_maven () { _install_maven_$dist; }
+function _install_maven_centos ()
 {
-    _install ant maven;
+    _install maven;
 }
-function _install_ant_maven_ubuntu ()
+function _install_maven_ubuntu ()
 {
     _add_repo ppa:andrei-pozolotin/maven3
-    _install ant maven3
+    _install maven3
 }
 
 # known versions: 7 8
@@ -301,47 +303,6 @@ function _install_java_ubuntu_oracle ()
         _install oracle-java${v}-installer 2>&1 | grep --line-buffered -v " ........ "
     done
     #OFF update-java-alternatives -s java-7-oracle
-}
-
-function _link_zimbra_common ()
-{
-    ddir="${ZIMBRA_HOME}/common/sbin"
-    if [[ -d "$ddir" ]]; then
-        say "Directory '$ddir' already exists!"
-    else
-      ( #  do the work in a subshell since we're CD'ing
-        mkdir -p "$ddir"
-        cd "$ddir" || exit
-        for bin in /usr/local/bin/consul $(type -p memcached) $(type -p redis-server)
-        do
-            if [[ -x "$bin" ]]; then
-                say "Make symlink to '$bin' in '$ddir'"
-                ln -s "$bin" "."
-            fi
-        done
-      )
-    fi
-}
-
-# consul
-# - download via http://www.consul.io/downloads.html
-#   /usr/local/bin/consul agent -server -bootstrap-expect 1 -data-dir /var/tmp/consul
-function _install_consul ()
-{
-    _install zip
-    zip="$1"_linux_amd64.zip
-    url="https://dl.bintray.com/mitchellh/consul/""$zip"
-    loc="/usr/local/bin"
-    bin="$loc""/consul"
-    if [[ -x "$bin" ]]; then
-        say "consul: '$bin' already installed"
-        return
-    else
-      ( #  do the work in a subshell since we're CD'ing
-        cd "$loc" && wget -nv "$url" && unzip "$zip" && rm "$zip" && chmod 755 "$bin"
-        [[ ! -x "$bin" ]] && say "consul: '$bin' install failed!"
-      )
-    fi
 }
 
 function _install_mariadb_server () { _install_mariadb_server_$dist; }
